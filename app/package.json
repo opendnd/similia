@@ -4,8 +4,10 @@
   "private": true,
   "dependencies": {
     "@opendnd/core": "^0.2.7",
+    "konva": "^2.6.0",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
+    "react-konva": "^16.7.1",
     "react-scripts": "2.1.3"
   },
   "scripts": {

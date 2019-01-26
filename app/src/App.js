@@ -1,10 +1,12 @@
 import React, { Component } from 'react';
 import { roll } from '@opendnd/core';
+import { Stage, Layer, Rect } from 'react-konva';
+import Konva from 'konva';
 import './App.css';
 
-const blockSize = 50;
+const blockSize = 25;
 let interval;
-const timer = 500;
+const timer = 50;
 
 class App extends Component {
   constructor(props) {
@@ -15,7 +17,7 @@ class App extends Component {
 
     const grid = Array(width).fill(undefined);
     grid.forEach((_, i) => {
-      grid[i] = new Array(height).fill({ backgroundColor: 'rgba(0,150,0,1)' });
+      grid[i] = new Array(height).fill({ color: '#86BB8C' });
     });
 
     this.state = {
@@ -27,7 +29,6 @@ class App extends Component {
   }
 
   componentWillMount() {
-    
     interval = setInterval(this.sim, timer);
   }
 
@@ -36,34 +37,54 @@ class App extends Component {
   }
 
   sim = () => {
-    const { domains, width, height } = this.state;
-    // roll d20 and do a DC10
-    if (roll('1d20') > 10) this.random();
+    const { domains:domainsDict, width, height } = this.state;
 
-    Object.values(domains).forEach((domain, domainId) => {
-      const { cells } = domain;
+    const domains = Object.values(domainsDict);
+
+    if (domains.length < 5) if (roll('1d20') > 10) this.createDomain();
+
+    if (domains.length > 0) {
+      const rdomain = domains[(roll(`1d${domains.length}`) - 1)];
+      const { cells, id:domainId } = rdomain;
       const rcell = cells[(roll(`1d${cells.length}`) - 1)];
-      const x = (roll('1d3') - 2) + rcell.x;
-      const y = (roll('1d3') - 2) + rcell.y;
+      const xd = 2 - roll('1d3');
+      const yd = 2 - roll('1d3');
+      const { x:x1, y:y1 } = rcell;
+      let x2 = x1 + xd;
+      let y2 = y1 + yd;
+      const distance = Math.hypot(x2-x1, y2-y1);
+
+      if (distance > 1) {
+        if (roll('1d2') === 1) {
+          if (xd > 0) {
+            x2 -= 1;
+          } else {
+            x2 += 1;
+          }
+        } else {
+          if (yd > 0) {
+            y2 -= 1;
+          } else {
+            y2 += 1;
+          }
+        }
+      }
 
       if (
-        (x >= 0) && 
-        (y >= 0) &&
-        (x < width) &&
-        (y < height)
+        (x2 >= 0) && 
+        (y2 >= 0) &&
+        (x2 < width) &&
+        (y2 < height)
       ) {
-        this.takeCell(x, y, domainId);
+        this.takeCell(x2, y2, domainId);
       }
-    });
+    }
   }
 
-  random = () => {
+  createDomain = () => {
     const { width, height } = this.state;
     const x = roll(`1d${width}`) - 1;
     const y = roll(`1d${height}`) - 1;
-    const r = roll('1d255');
-    const g = roll('1d255');
-    const b = roll('1d255');
 
     const id = Object.keys(this.state.domains).length;
     const domain = {
@@ -71,9 +92,7 @@ class App extends Component {
       capital: {
         x, y,
       },
-      colors: {
-        r, g, b,
-      },
+      color: Konva.Util.getRandomColor(),
       cells: [
         {
           x, y,
@@ -94,10 +113,9 @@ class App extends Component {
 
   takeCell = (x, y, domainId) => {
     const domain = this.state.domains[domainId];
-    const { colors } = domain;
-    const { r, g, b } = colors;
+    const { color } = domain;
     const cell = this.getCell(x, y);
-    cell.backgroundColor = `rgba(${r}, ${g}, ${b}, 1)`;
+    cell.color = color;
     cell.ownerId = domainId;
     this.updateCell(x, y, cell);
     this.removeCell(x, y, domainId);
@@ -160,25 +178,30 @@ class App extends Component {
 
     return (
       <div className="App">
-        <div className="Grid">
-          {
-            grid.map((column, key) => {
-              return (
-                <div className="Column" key={key}>
-                  {
-                    column.map((cell, key) => {
-                      const { backgroundColor } = cell;
+        <Stage width={window.innerWidth} height={window.innerHeight}>
+          <Layer>
+            {
+              grid.map((column, x) => {
+                return (
+                  column.map((cell, y) => {
+                    const { color } = cell;
 
-                      return (
-                        <div className="Block" key={key} style={{ backgroundColor }}></div>
-                      )
-                    })
-                  }
-                </div>
-              )
-            })
-          }
-        </div>
+                    return (
+                      <Rect
+                        x={x*blockSize}
+                        y={y*blockSize}
+                        key={`${x}-${y}`}
+                        width={blockSize}
+                        height={blockSize}
+                        fill={color}
+                      />
+                    )
+                  })
+                )
+              })
+            }
+          </Layer>
+        </Stage>
       </div>
     );
   }
